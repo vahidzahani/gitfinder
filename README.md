@@ -94,3 +94,7 @@ or `go build -ldflags "-s -w" -o gitfinder.exe .`
 
 Made by **vahidzahani** · [vahidzahani.ir](https://vahidzahani.ir) ·
 [github.com/vahidzahani](https://github.com/vahidzahani)
+
+## License
+
+[MIT](LICENSE)
