@@ -18,6 +18,7 @@ const (
 type scanPlan struct {
 	mode  scanMode
 	roots []string
+	fetch bool
 }
 
 // runMenu shows the interactive drive picker until the user starts a scan
@@ -27,7 +28,7 @@ func runMenu(drives []Drive, plan scanPlan, header func()) (scanPlan, bool) {
 	for {
 		clearScreen()
 		header()
-		printMenu(drives)
+		printMenu(drives, plan)
 		if msg != "" {
 			fmt.Println("  " + msg)
 			fmt.Println()
@@ -49,6 +50,8 @@ func runMenu(drives []Drive, plan scanPlan, header func()) (scanPlan, bool) {
 			return plan, true
 		case lower == "x":
 			return plan, false
+		case lower == "f":
+			plan.fetch = !plan.fetch
 		case lower == "a" || lower == "n":
 			for i := range drives {
 				drives[i].Selected = lower == "a" && drives[i].Ready
@@ -76,13 +79,10 @@ func runMenu(drives []Drive, plan scanPlan, header func()) (scanPlan, bool) {
 	}
 }
 
-func printMenu(drives []Drive) {
+func printMenu(drives []Drive, plan scanPlan) {
 	fmt.Println("  " + bold("Drives") + dim("  (type a number to toggle, e.g. 2 or 1 3)"))
 	for i, d := range drives {
-		mark := dim("[ ]")
-		if d.Selected {
-			mark = bgreen("[x]")
-		}
+		mark := check(d.Selected)
 		size := dim("not ready")
 		if !d.Ready {
 			mark = dim("[-]")
@@ -97,11 +97,22 @@ func printMenu(drives []Drive) {
 			padRight(shortenLeft(label, 16), 16), padRight(d.Kind, 10), size)
 	}
 	fmt.Println()
+	fmt.Println("  " + bold("Options"))
+	fmt.Println("   " + check(plan.fetch) + " " + green("F") + "  Fetch from remotes first  " +
+		dim("(exact sync state; slower, needs network)"))
+	fmt.Println()
 	fmt.Println("  " + bold("Commands"))
 	fmt.Println("   " + green("A") + " / " + green("N") + "  select all / none drives      " + green("X") + "  exit")
 	fmt.Println()
 	fmt.Println("  " + bgreen("Enter") + " = scan selected drives   " + dim("·") + "   or type/paste a folder path to scan only that folder")
 	fmt.Println()
+}
+
+func check(on bool) string {
+	if on {
+		return bgreen("[x]")
+	}
+	return dim("[ ]")
 }
 
 func splitList(s string) []string {

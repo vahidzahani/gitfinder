@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"sort"
 	"strings"
 	"time"
 )
@@ -21,6 +22,7 @@ const (
 
 type options struct {
 	paths       string
+	fetch       bool
 	noPrompt    bool
 	showVersion bool
 }
@@ -28,6 +30,7 @@ type options struct {
 func main() {
 	var o options
 	flag.StringVar(&o.paths, "path", "", "scan only these folders (separate several with ;)")
+	flag.BoolVar(&o.fetch, "fetch", false, "run git fetch on every repository before checking it")
 	flag.BoolVar(&o.noPrompt, "yes", false, "skip the menu and scan the default drives")
 	flag.BoolVar(&o.showVersion, "version", false, "print version and exit")
 	flag.Parse()
@@ -60,7 +63,7 @@ func run(o options, interactive bool) int {
 		return 1
 	}
 
-	plan := scanPlan{}
+	plan := scanPlan{fetch: o.fetch}
 	if o.paths != "" {
 		plan.mode = modePath
 		for _, p := range strings.Split(o.paths, ";") {
@@ -92,12 +95,65 @@ func run(o options, interactive bool) int {
 
 	start := time.Now()
 	paths, st := discover(plan.roots)
-	okLine(fmt.Sprintf("Found %s in %s folders (%s)", bold(fmt.Sprintf("%d repositories", len(paths))),
-		thousands(st.dirs.Load()), time.Since(start).Round(100*time.Millisecond)))
-	for _, p := range paths {
-		infoLine(p)
-	}
+	okLine(fmt.Sprintf("Found %s in %s folders", bold(fmt.Sprintf("%d repositories", len(paths))),
+		thousands(st.dirs.Load())))
+
+	repos := inspectAll(paths, func(string) *Repo { return nil }, plan.fetch)
+	sort.Slice(repos, func(i, j int) bool { return strings.ToLower(repos[i].Name) < strings.ToLower(repos[j].Name) })
+	printSummary(repos, time.Since(start))
 	return 0
+}
+
+func printSummary(repos []*Repo, took time.Duration) {
+	var dirty, unpushed, noRemote, behind, failed int
+	var risky []*Repo
+	for _, r := range repos {
+		if r.Error != "" {
+			failed++
+			continue
+		}
+		if !r.Clean() {
+			dirty++
+		}
+		if len(r.Remotes) == 0 {
+			noRemote++
+		} else if r.Unpushed > 0 {
+			unpushed++
+		}
+		if r.Behind > 0 {
+			behind++
+		}
+		if len(r.Remotes) == 0 && (r.Commits > 0 || !r.Clean()) || len(r.Remotes) > 0 && r.Unpushed > 0 {
+			risky = append(risky, r)
+		}
+	}
+	okLine(fmt.Sprintf("Checked %d repositories in %s", len(repos), took.Round(100*time.Millisecond)))
+	fmt.Println()
+	fmt.Printf("    %s  %s  %s  %s  %s\n",
+		bold(fmt.Sprintf("%d repos", len(repos))),
+		yellow(fmt.Sprintf("%d dirty", dirty)),
+		yellow(fmt.Sprintf("%d unpushed", unpushed)),
+		red(fmt.Sprintf("%d no remote", noRemote)),
+		cyan(fmt.Sprintf("%d behind", behind)))
+	if failed > 0 {
+		warnLine(fmt.Sprintf("%d repositories could not be read", failed))
+	}
+	if len(risky) > 0 {
+		fmt.Println()
+		fmt.Println("  " + red("⚠") + " " + bold(fmt.Sprintf("At risk: %d repositories have work that exists only on this computer", len(risky))))
+		for i, r := range risky {
+			if i == 8 {
+				fmt.Println("      " + dim(fmt.Sprintf("… and %d more (see the report)", len(risky)-8)))
+				break
+			}
+			why := "no remote"
+			if len(r.Remotes) > 0 {
+				why = fmt.Sprintf("%d unpushed commits", r.Unpushed)
+			}
+			fmt.Printf("      %s %s  %s\n", padRight(bold(r.Name), 24), padRight(red(why), 20), dim(r.Path))
+		}
+	}
+	fmt.Println()
 }
 
 func checkGit() (string, error) {
