@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"time"
 )
 
 const (
@@ -89,7 +90,13 @@ func run(o options, interactive bool) int {
 		return 2
 	}
 
-	infoLine("Scanning: " + strings.Join(plan.roots, ", "))
+	start := time.Now()
+	paths, st := discover(plan.roots)
+	okLine(fmt.Sprintf("Found %s in %s folders (%s)", bold(fmt.Sprintf("%d repositories", len(paths))),
+		thousands(st.dirs.Load()), time.Since(start).Round(100*time.Millisecond)))
+	for _, p := range paths {
+		infoLine(p)
+	}
 	return 0
 }
 
