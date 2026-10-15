@@ -7,6 +7,8 @@ GitFinder scans the drives you pick, checks each repository with `git`, and
 opens a single-file HTML report. It is one small `.exe` with no dependencies
 other than Git.
 
+![GitFinder HTML report with summary cards, the at-risk panel and the repository table](docs/screenshots/report.png)
+
 ## Features
 
 - **Drive picker**: lists all drives (fixed, removable, network) and lets you
@@ -40,24 +42,11 @@ other than Git.
 
 ## Usage
 
-Double-click `gitfinder.exe`, or run it from a terminal:
+Double-click `gitfinder.exe`, or run it from a terminal. Type a drive number
+to toggle it, press Enter to scan, or paste a folder path to scan only that
+folder:
 
-```text
-  Drives  (type a number to toggle, e.g. 2 or 1 3)
-   [x]  1  C:\  —                Fixed      16.3 GB free of 357.4 GB
-   [ ]  2  E:\  32-VAHID         Removable  7.1 GB free of 29.0 GB
-   [x]  3  F:\  HDD              Fixed      19.6 GB free of 931.5 GB
-
-  Options
-   [ ] F  Fetch from remotes first  (exact sync state; slower, needs network)
-   [x] E  Use Everything index      (instant scan)
-
-  Commands
-   Q      quick refresh of 74 cached repositories (no disk scan)
-   A / N  select all / none drives      X  exit
-
-  Enter = scan selected drives   ·   or type/paste a folder path to scan only that folder
-```
+![GitFinder console menu with the drive list, options and commands](docs/screenshots/console.png)
 
 The report opens in your browser when the scan finishes. It is saved to
 `%LOCALAPPDATA%\GitFinder\report.html`, next to the cache.
