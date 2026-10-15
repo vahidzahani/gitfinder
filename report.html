@@ -187,6 +187,53 @@ footer .links a { display: inline-flex; align-items: center; gap: 5px; }
 #toast.show { opacity: 1; transform: translate(-50%, 0); }
 #toast.bad { background: var(--red); }
 
+/* Shell toggle */
+.shell { display: flex; align-items: center; gap: 10px; font-size: 13px; color: rgba(255,255,255,.8); }
+.seg { display: inline-flex; background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.22); border-radius: 10px; padding: 3px; }
+.seg button { border: 0; background: none; color: #fff; padding: 6px 12px; border-radius: 7px; cursor: pointer; font-weight: 600; font-size: 13px; opacity: .8; }
+.seg button.on { background: #fff; color: var(--g800); opacity: 1; }
+.btn-primary { background: var(--g700); border-color: var(--g700); color: #fff; font-weight: 600; }
+.btn-primary:hover { background: var(--g800); border-color: var(--g800); color: #fff; }
+
+/* Actions dialog */
+.modal {
+  position: fixed; inset: 0; background: rgba(5, 46, 22, .45); z-index: 40;
+  display: flex; align-items: flex-start; justify-content: center; padding: 40px 16px; overflow-y: auto;
+}
+.modal[hidden] { display: none; }
+.dialog { background: #fff; border-radius: 16px; width: min(780px, 100%); box-shadow: 0 24px 64px rgba(0,0,0,.25); }
+.dlg-head { padding: 18px 20px 14px; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+.dlg-head h2 { margin: 0 0 2px; font-size: 19px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.dlg-head .rpath { cursor: copy; }
+.dlg-body { padding: 4px 20px 18px; }
+.dlg-foot { padding: 12px 20px; border-top: 1px solid var(--line); font-size: 12px; color: var(--mute); background: #fbfdfb; border-radius: 0 0 16px 16px; }
+.close { border: 0; background: none; font-size: 26px; line-height: 1; cursor: pointer; color: var(--mute); padding: 0 4px; }
+.close:hover { color: var(--ink); }
+.group h4 { margin: 18px 0 8px; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--mute); }
+.group .note { font-size: 12px; color: var(--mute); margin: -4px 0 8px; }
+.text {
+  width: 100%; padding: 9px 12px; border-radius: 10px; border: 1px solid var(--line); font: inherit;
+  margin-bottom: 8px; outline: none; background: var(--g50);
+}
+.text:focus { border-color: var(--g600); background: #fff; box-shadow: 0 0 0 3px var(--g100); }
+.cmd {
+  display: grid; grid-template-columns: 170px 1fr auto; gap: 10px; align-items: center; width: 100%;
+  padding: 7px 8px 7px 12px; border: 1px solid var(--line); border-radius: 10px; margin-bottom: 6px;
+  cursor: pointer; background: #fff; text-align: left;
+}
+.cmd:hover { border-color: var(--g500); background: var(--g50); }
+.cmd .lbl { font-weight: 600; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cmd code { font-family: var(--mono); font-size: 12px; color: var(--ink2); background: var(--g50); padding: 4px 8px; border-radius: 6px; overflow-wrap: anywhere; unicode-bidi: plaintext; }
+.cmd:hover code { background: #fff; }
+.cmd .cp { display: inline-grid; place-items: center; width: 30px; height: 30px; border-radius: 8px; color: var(--g700); background: var(--g100); }
+.cmd.off { cursor: help; }
+.cmd.off code { color: var(--mute); font-style: italic; font-family: inherit; }
+.cmd.off .cp { opacity: .4; }
+
+@media (max-width: 640px) {
+  .cmd { grid-template-columns: 1fr auto; }
+  .cmd .lbl { grid-column: 1 / -1; }
+}
 @media (max-width: 860px) {
   .dgrid { grid-template-columns: 1fr; }
   .hide-sm { display: none; }
@@ -204,6 +251,13 @@ footer .links a { display: inline-flex; align-items: center; gap: 5px; }
       <div>
         <h1>GitFinder<span>Local repository report</span></h1>
         <p class="meta" id="meta"></p>
+      </div>
+    </div>
+    <div class="shell" title="Copied commands are written for this shell">
+      Commands for
+      <div class="seg" role="group" aria-label="Shell">
+        <button data-shell="cmd">CMD</button>
+        <button data-shell="ps">PowerShell</button>
       </div>
     </div>
   </div>
@@ -259,6 +313,23 @@ footer .links a { display: inline-flex; align-items: center; gap: 5px; }
       <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.68 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.83 1.19 3.09 0 4.41-2.69 5.39-5.25 5.67.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5z"/></svg>github.com/vahidzahani</a>
   </div>
 </footer>
+
+<div class="modal" id="modal" hidden>
+  <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="dlg-title">
+    <div class="dlg-head">
+      <div style="min-width:0">
+        <h2 id="dlg-title"></h2>
+        <div class="rpath" id="dlg-path" title="Click to copy the path"></div>
+      </div>
+      <button class="close" data-close aria-label="Close">×</button>
+    </div>
+    <div class="dlg-body" id="dlg-body"></div>
+    <div class="dlg-foot">
+      Click a command to copy it, then paste it into any <b id="dlg-shell">CMD</b> window and press Enter.
+      Commands include the repository path, so they work from any folder.
+    </div>
+  </div>
+</div>
 
 <div id="toast" role="status" aria-live="polite"></div>
 
@@ -392,7 +463,7 @@ const DATA = /*__GITFINDER_DATA__*/null;
     el.innerHTML = `<h2><span style="color:var(--red)">⚠</span> At risk: ${plural(list.length, "repository", "repositories")}</h2>
       <p>This work exists only on this computer. If the disk fails it is gone, so push it to a remote.</p>
       <ul>${list.slice(0, max).map(r => `<li><span class="n">${esc(r.name)}</span>${riskReasons(r)}<span class="p">${esc(r.path)}</span>
-        <button class="iconbtn" data-goto="${r.id}">Show</button></li>`).join("")}</ul>
+        <button class="iconbtn" data-goto="${r.id}">Show</button><button class="iconbtn btn-primary" data-actions="${r.id}">Fix</button></li>`).join("")}</ul>
       ${list.length > max ? `<div class="more"><button class="iconbtn" data-filter="risk">Show all ${list.length} at-risk repositories</button></div>` : ""}`;
   }
 
@@ -467,6 +538,7 @@ const DATA = /*__GITFINDER_DATA__*/null;
       <td class="hide-sm"><span title="${esc(fmtDate(r.lastCommit))}">${ago(r.lastCommit)}</span>
         ${r.lastSubject ? `<div class="sub subject" title="${esc(r.lastSubject)}">${esc(r.lastSubject)}</div>` : ""}</td>
       <td style="white-space:nowrap;text-align:right">
+        <button class="iconbtn btn-primary" data-actions="${r.id}">Actions</button>
         <button class="iconbtn" data-toggle="${r.id}" title="Details" aria-label="Details"><svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="m6 9 6 6 6-6"/></svg></button>
       </td>
     </tr>${isOpen ? detailsHTML(r) : ""}`;
@@ -543,11 +615,155 @@ const DATA = /*__GITFINDER_DATA__*/null;
     return ok;
   }
 
+  // ---------- commands ----------
+  let shell = store.get("gf-shell") === "ps" ? "ps" : "cmd";
+  // A " inside an argument is mangled by CMD and by Windows PowerShell 5.1
+  // when calling native programs, so it becomes ' in both shells.
+  // PowerShell uses single quotes (no $ or backtick expansion; ' is doubled).
+  const quote = s => {
+    s = String(s).replace(/"/g, "'");
+    return shell === "ps" ? "'" + s.replace(/'/g, "''") + "'" : '"' + s + '"';
+  };
+  const cd = path => shell === "cmd" ? `cd /d ${quote(path)}` : `Set-Location ${quote(path)}`;
+  // Windows PowerShell 5.1 has no &&, so each next step is nested in if ($?) { }.
+  function chain(steps) {
+    if (shell === "cmd") return steps.join(" && ");
+    let out = steps[steps.length - 1];
+    for (let i = steps.length - 2; i >= 0; i--) out = `${steps[i]}; if ($?) { ${out} }`;
+    return out;
+  }
+  const FIELDS = {
+    msg: { what: "a commit message", placeholder: "Commit message, e.g. Fix login form validation" },
+    branch: { what: "a branch name", placeholder: "New branch name, e.g. feature/search" },
+    url: { what: "the remote URL", placeholder: "https://github.com/you/repo.git" },
+  };
+  const inputs = { msg: "", branch: "", url: "" };
+  let current = null, cmds = [];
+
+  function commandGroups(r) {
+    // Single commands use git -C <path>; multi-step ones cd into the repo first.
+    const G = args => `git -C ${quote(r.path)} ${args}`;
+    const inRepo = (...steps) => chain([cd(r.path)].concat(steps.map(s => "git " + s)));
+    const remote = r.remotes[0] ? r.remotes[0].name : "origin";
+    const cur = r.branch;
+    const pushArgs = !r.upstream && cur ? `push -u ${remote} ${quote(cur)}` : "push";
+    const push = G(pushArgs);
+    const msg = inputs.msg.replace(/\s*[\r\n]+\s*/g, " ").trim();
+    const groups = [];
+
+    const commit = [{ label: "Stage all & commit", need: "msg", cmd: inRepo("add -A", `commit -m ${quote(msg)}`) }];
+    if (!r.noRemote && cur) commit.push({ label: "Commit & push", need: "msg", cmd: inRepo("add -A", `commit -m ${quote(msg)}`, pushArgs) });
+    groups.push({ title: "Commit", field: "msg", items: commit });
+
+    if (r.noRemote) {
+      groups.push({
+        title: "Back up to a remote", field: "url",
+        note: "Create an empty repository on GitHub or GitLab, paste its URL, then copy the command.",
+        items: [{ label: "Add remote & push", need: "url", cmd: inRepo(`remote add origin ${quote(inputs.url.trim())}`, "push -u origin --all") }],
+      });
+    } else {
+      groups.push({ title: "Sync with remote", items: [
+        { label: r.upstream ? "Push" : "Push & set upstream", cmd: push, hide: !cur },
+        { label: "Pull", cmd: G("pull"), hide: !r.upstream },
+        { label: "Push all branches", cmd: G(`push ${remote} --all`), hide: r.branches.length < 2 },
+        { label: "Fetch all remotes", cmd: G("fetch --all --prune") },
+      ] });
+    }
+
+    groups.push({ title: "Switch branch", field: "branch", items: r.branches.filter(b => !b.current)
+      .map(b => ({ label: "→ " + b.name, cmd: G(`switch ${quote(b.name)}`) }))
+      .concat([{ label: "Create & switch", need: "branch", cmd: G(`switch -c ${quote(inputs.branch.trim())}`) }]) });
+
+    groups.push({ title: "Inspect", items: [
+      { label: "Status", cmd: G("status") },
+      { label: "Recent history", cmd: G("log --oneline --graph --decorate -20") },
+      { label: "Changed files", cmd: G("diff --stat") },
+    ] });
+    groups.push({ title: "Stash", items: [
+      { label: "Stash all changes", cmd: G("stash push -u"), hide: !r.dirty },
+      { label: "Apply last stash", cmd: G("stash pop"), hide: !r.stashes },
+      { label: "List stashes", cmd: G("stash list"), hide: !r.stashes },
+    ] });
+    const web = r.remotes[0] && r.remotes[0].web;
+    groups.push({ title: "Open", items: [
+      { label: "Go to folder", cmd: cd(r.path) },
+      { label: "Open in Explorer", cmd: `explorer ${quote(r.path)}` },
+      { label: "Open in VS Code", cmd: `code ${quote(r.path)}` },
+      { label: "Open remote in browser", cmd: shell === "cmd" ? `start "" ${quote(web)}` : `Start-Process ${quote(web)}`, hide: !web },
+    ] });
+    groups.forEach(g => (g.items = g.items.filter(i => !i.hide)));
+    return groups.filter(g => g.items.length);
+  }
+
+  const COPY_ICON = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>`;
+
+  function openActions(r) {
+    current = r;
+    inputs.msg = inputs.branch = inputs.url = "";
+    $("#dlg-title").innerHTML = esc(r.name) + " " + tags(r);
+    $("#dlg-path").textContent = r.path;
+    $("#dlg-body").innerHTML = commandGroups(r).map(g => `<div class="group"><h4>${g.title}</h4>
+      ${g.note ? `<p class="note">${g.note}</p>` : ""}
+      ${g.field ? `<input class="text" data-field="${g.field}" placeholder="${esc(FIELDS[g.field].placeholder)}" autocomplete="off">` : ""}
+      ${g.items.map(() => `<button class="cmd"><span class="lbl"></span><code></code><span class="cp">${COPY_ICON}</span></button>`).join("")}
+    </div>`).join("");
+    $("#modal").hidden = false;
+    document.body.style.overflow = "hidden";
+    updateCommands();
+    const first = $("#dlg-body .text");
+    if (first) first.focus();
+  }
+
+  // Refresh command text in place, so typing never loses input focus.
+  function updateCommands() {
+    if (!current) return;
+    cmds = [].concat(...commandGroups(current).map(g => g.items));
+    document.querySelectorAll("#dlg-body .cmd").forEach((el, i) => {
+      const c = cmds[i];
+      const missing = c.need && !inputs[c.need].trim();
+      el.dataset.cmd = i;
+      el.classList.toggle("off", !!missing);
+      el.querySelector(".lbl").textContent = c.label;
+      el.querySelector(".lbl").title = c.label;
+      el.querySelector("code").textContent = missing ? "Type " + FIELDS[c.need].what + " above" : c.cmd;
+    });
+    $("#dlg-shell").textContent = shell === "ps" ? "PowerShell" : "CMD";
+  }
+
+  function closeActions() {
+    $("#modal").hidden = true;
+    document.body.style.overflow = "";
+    current = null;
+  }
+
+  function setShell(s) {
+    shell = s;
+    store.set("gf-shell", s);
+    document.querySelectorAll("[data-shell]").forEach(b => b.classList.toggle("on", b.dataset.shell === s));
+    updateCommands();
+  }
+
   // ---------- events ----------
   document.addEventListener("click", e => {
-    const t = e.target.closest("[data-filter],[data-toggle],[data-copy-path],[data-goto]");
+    if (e.target.id === "modal") return closeActions();
+    const t = e.target.closest("[data-filter],[data-toggle],[data-copy-path],[data-goto],[data-actions],[data-shell],[data-cmd],[data-close],#dlg-path");
     if (!t) return;
-    if (t.dataset.filter) {
+    if (t.id === "dlg-path") {
+      copy(current.path);
+    } else if (t.dataset.cmd) {
+      const c = cmds[+t.dataset.cmd];
+      if (c.need && !inputs[c.need].trim()) {
+        toast("Type " + FIELDS[c.need].what + " first", true);
+        const field = document.querySelector(`[data-field="${c.need}"]`);
+        if (field) field.focus();
+      } else copy(c.cmd, c.label);
+    } else if (t.dataset.actions) {
+      openActions(repos[+t.dataset.actions]);
+    } else if (t.dataset.shell) {
+      setShell(t.dataset.shell);
+    } else if (t.hasAttribute("data-close")) {
+      closeActions();
+    } else if (t.dataset.filter) {
       filter = filter === t.dataset.filter && t.dataset.filter !== "all" ? "all" : t.dataset.filter;
       render();
       if (t.closest("#risk")) $("#q").scrollIntoView({ behavior: "smooth", block: "center" });
@@ -569,10 +785,15 @@ const DATA = /*__GITFINDER_DATA__*/null;
   $("#q").addEventListener("input", e => { query = e.target.value.trim().toLowerCase(); render(); });
   $("#sort").value = sortBy;
   $("#sort").addEventListener("change", e => { sortBy = e.target.value; store.set("gf-sort", sortBy); render(); });
+  $("#dlg-body").addEventListener("input", e => {
+    if (e.target.dataset.field) { inputs[e.target.dataset.field] = e.target.value; updateCommands(); }
+  });
   document.addEventListener("keydown", e => {
-    if (e.key === "/" && document.activeElement.tagName !== "INPUT") { e.preventDefault(); $("#q").focus(); }
+    if (e.key === "Escape" && current) return closeActions();
+    if (e.key === "/" && !current && document.activeElement.tagName !== "INPUT") { e.preventDefault(); $("#q").focus(); }
   });
 
+  setShell(shell);
   renderMeta();
   renderRisk();
   render();
