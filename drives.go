@@ -1,7 +1,9 @@
 package main
 
 import (
+	"sync"
 	"syscall"
+	"time"
 	"unsafe"
 )
 
@@ -24,6 +26,8 @@ type Drive struct {
 
 // listDrives returns every mounted drive letter. Fixed drives that are ready
 // are selected by default; removable and network drives are opt-in.
+// Drives are probed in parallel with a timeout, because a disconnected
+// network drive can block GetDiskFreeSpaceEx for a long time.
 func listDrives() []Drive {
 	mask, _, _ := procGetLogicalDrives.Call()
 	var out []Drive
@@ -31,10 +35,8 @@ func listDrives() []Drive {
 		if mask&(1<<uint(i)) == 0 {
 			continue
 		}
-		root := string(rune('A'+i)) + `:\`
-		p, _ := syscall.UTF16PtrFromString(root)
-		d := Drive{Root: root}
-
+		d := Drive{Root: string(rune('A'+i)) + `:\`}
+		p, _ := syscall.UTF16PtrFromString(d.Root)
 		t, _, _ := procGetDriveTypeW.Call(uintptr(unsafe.Pointer(p)))
 		switch t {
 		case 2:
@@ -50,23 +52,45 @@ func listDrives() []Drive {
 		default:
 			continue
 		}
-
-		var free, total, totalFree uint64
-		r, _, _ := procGetDiskFreeSpaceExW.Call(uintptr(unsafe.Pointer(p)),
-			uintptr(unsafe.Pointer(&free)), uintptr(unsafe.Pointer(&total)), uintptr(unsafe.Pointer(&totalFree)))
-		if r != 0 {
-			d.Ready, d.Total, d.Free = true, total, totalFree
-			label := make([]uint16, 261)
-			r, _, _ = procGetVolumeInformationW.Call(uintptr(unsafe.Pointer(p)),
-				uintptr(unsafe.Pointer(&label[0])), uintptr(len(label)), 0, 0, 0, 0, 0)
-			if r != 0 {
-				d.Label = syscall.UTF16ToString(label)
-			}
-		}
-		d.Selected = d.Ready && d.Kind == "Fixed"
 		out = append(out, d)
 	}
+
+	var wg sync.WaitGroup
+	for i := range out {
+		wg.Add(1)
+		go func(d *Drive) {
+			defer wg.Done()
+			done := make(chan Drive, 1)
+			go func(probe Drive) { done <- probeDrive(probe) }(*d)
+			select {
+			case *d = <-done:
+			case <-time.After(2 * time.Second):
+			}
+		}(&out[i])
+	}
+	wg.Wait()
+	for i := range out {
+		out[i].Selected = out[i].Ready && out[i].Kind == "Fixed"
+	}
 	return out
+}
+
+func probeDrive(d Drive) Drive {
+	p, _ := syscall.UTF16PtrFromString(d.Root)
+	var free, total, totalFree uint64
+	r, _, _ := procGetDiskFreeSpaceExW.Call(uintptr(unsafe.Pointer(p)),
+		uintptr(unsafe.Pointer(&free)), uintptr(unsafe.Pointer(&total)), uintptr(unsafe.Pointer(&totalFree)))
+	if r == 0 {
+		return d
+	}
+	d.Ready, d.Total, d.Free = true, total, totalFree
+	label := make([]uint16, 261)
+	r, _, _ = procGetVolumeInformationW.Call(uintptr(unsafe.Pointer(p)),
+		uintptr(unsafe.Pointer(&label[0])), uintptr(len(label)), 0, 0, 0, 0, 0)
+	if r != 0 {
+		d.Label = syscall.UTF16ToString(label)
+	}
+	return d
 }
 
 func selectedRoots(drives []Drive) []string {
