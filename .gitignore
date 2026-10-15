@@ -1,0 +1,6 @@
+# Build output
+*.exe
+dist/
+
+# Local reports
+report.html
