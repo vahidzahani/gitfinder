@@ -22,6 +22,7 @@ const (
 
 type options struct {
 	paths       string
+	quick       bool
 	fetch       bool
 	noPrompt    bool
 	showVersion bool
@@ -30,6 +31,7 @@ type options struct {
 func main() {
 	var o options
 	flag.StringVar(&o.paths, "path", "", "scan only these folders (separate several with ;)")
+	flag.BoolVar(&o.quick, "quick", false, "re-check cached repositories only, without scanning disks")
 	flag.BoolVar(&o.fetch, "fetch", false, "run git fetch on every repository before checking it")
 	flag.BoolVar(&o.noPrompt, "yes", false, "skip the menu and scan the default drives")
 	flag.BoolVar(&o.showVersion, "version", false, "print version and exit")
@@ -40,7 +42,7 @@ func main() {
 	}
 
 	initConsole()
-	interactive := isTerminal() && !o.noPrompt && o.paths == ""
+	interactive := isTerminal() && !o.noPrompt && o.paths == "" && !o.quick
 	code := run(o, interactive)
 	if interactive {
 		pause("Press Enter to exit…")
@@ -50,10 +52,17 @@ func main() {
 
 func run(o options, interactive bool) int {
 	gitVersion, err := checkGit()
+	cache := loadCache()
 	header := func() {
 		printBanner()
-		if err == nil {
-			okLine("Git found: " + gitVersion)
+		if err != nil {
+			return
+		}
+		okLine("Git found: " + gitVersion)
+		if n := len(cache.Repos); n > 0 {
+			okLine(fmt.Sprintf("Cache: %d repositories (last scan %s)", n, ago(cache.LastScan)))
+		} else {
+			infoLine("Cache: empty, this is the first scan")
 		}
 		fmt.Println()
 	}
@@ -64,7 +73,14 @@ func run(o options, interactive bool) int {
 	}
 
 	plan := scanPlan{fetch: o.fetch}
-	if o.paths != "" {
+	switch {
+	case o.quick:
+		if len(cache.Repos) == 0 {
+			errLine("The cache is empty; run a full scan first.")
+			return 2
+		}
+		plan.mode = modeQuick
+	case o.paths != "":
 		plan.mode = modePath
 		for _, p := range strings.Split(o.paths, ";") {
 			if p = strings.TrimSpace(p); p == "" {
@@ -77,29 +93,44 @@ func run(o options, interactive bool) int {
 			}
 			plan.roots = append(plan.roots, p)
 		}
-	} else {
+	default:
 		drives := listDrives()
+		applySelection(drives, cache.SelectedDrives)
 		if interactive {
 			var ok bool
-			if plan, ok = runMenu(drives, plan, header); !ok {
+			if plan, ok = runMenu(drives, plan, len(cache.Repos), header); !ok {
 				return 0
 			}
 		} else {
 			plan.mode, plan.roots = modeDrives, selectedRoots(drives)
 		}
+		if plan.mode == modeDrives {
+			cache.SelectedDrives = plan.roots
+		}
 	}
-	if len(plan.roots) == 0 {
+	if plan.mode != modeQuick && len(plan.roots) == 0 {
 		errLine("Nothing to scan.")
 		return 2
 	}
 
 	start := time.Now()
-	paths, st := discover(plan.roots)
-	okLine(fmt.Sprintf("Found %s in %s folders", bold(fmt.Sprintf("%d repositories", len(paths))),
-		thousands(st.dirs.Load())))
+	var paths []string
+	if plan.mode == modeQuick {
+		paths = cache.knownPaths()
+		okLine(fmt.Sprintf("Quick refresh of %s from the cache", bold(fmt.Sprintf("%d repositories", len(paths)))))
+	} else {
+		var st *scanStats
+		paths, st = discover(plan.roots)
+		okLine(fmt.Sprintf("Found %s in %s folders", bold(fmt.Sprintf("%d repositories", len(paths))),
+			thousands(st.dirs.Load())))
+	}
 
-	repos := inspectAll(paths, func(string) *Repo { return nil }, plan.fetch)
+	repos := inspectAll(paths, cache.get, plan.fetch)
 	sort.Slice(repos, func(i, j int) bool { return strings.ToLower(repos[i].Name) < strings.ToLower(repos[j].Name) })
+	cache.update(plan.roots, repos, plan.mode != modeQuick)
+	if err := cache.save(); err != nil {
+		warnLine("Could not save the cache: " + err.Error())
+	}
 	printSummary(repos, time.Since(start))
 	return 0
 }

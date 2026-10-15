@@ -13,6 +13,7 @@ type scanMode int
 const (
 	modeDrives scanMode = iota
 	modePath
+	modeQuick
 )
 
 type scanPlan struct {
@@ -23,12 +24,12 @@ type scanPlan struct {
 
 // runMenu shows the interactive drive picker until the user starts a scan
 // (true) or exits (false). header redraws the banner and environment info.
-func runMenu(drives []Drive, plan scanPlan, header func()) (scanPlan, bool) {
+func runMenu(drives []Drive, plan scanPlan, cached int, header func()) (scanPlan, bool) {
 	msg := ""
 	for {
 		clearScreen()
 		header()
-		printMenu(drives, plan)
+		printMenu(drives, plan, cached)
 		if msg != "" {
 			fmt.Println("  " + msg)
 			fmt.Println()
@@ -52,6 +53,13 @@ func runMenu(drives []Drive, plan scanPlan, header func()) (scanPlan, bool) {
 			return plan, false
 		case lower == "f":
 			plan.fetch = !plan.fetch
+		case lower == "q":
+			if cached == 0 {
+				msg = yellow("The cache is empty; run a full scan first.")
+				continue
+			}
+			plan.mode = modeQuick
+			return plan, true
 		case lower == "a" || lower == "n":
 			for i := range drives {
 				drives[i].Selected = lower == "a" && drives[i].Ready
@@ -79,7 +87,7 @@ func runMenu(drives []Drive, plan scanPlan, header func()) (scanPlan, bool) {
 	}
 }
 
-func printMenu(drives []Drive, plan scanPlan) {
+func printMenu(drives []Drive, plan scanPlan, cached int) {
 	fmt.Println("  " + bold("Drives") + dim("  (type a number to toggle, e.g. 2 or 1 3)"))
 	for i, d := range drives {
 		mark := check(d.Selected)
@@ -102,6 +110,9 @@ func printMenu(drives []Drive, plan scanPlan) {
 		dim("(exact sync state; slower, needs network)"))
 	fmt.Println()
 	fmt.Println("  " + bold("Commands"))
+	if cached > 0 {
+		fmt.Println("   " + green("Q") + fmt.Sprintf("      quick refresh of %d cached repositories ", cached) + dim("(no disk scan)"))
+	}
 	fmt.Println("   " + green("A") + " / " + green("N") + "  select all / none drives      " + green("X") + "  exit")
 	fmt.Println()
 	fmt.Println("  " + bgreen("Enter") + " = scan selected drives   " + dim("·") + "   or type/paste a folder path to scan only that folder")
