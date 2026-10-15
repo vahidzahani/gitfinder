@@ -20,6 +20,8 @@ type scanPlan struct {
 	mode  scanMode
 	roots []string
 	fetch bool
+	// everything is nil when Everything is not running.
+	everything *bool
 }
 
 // runMenu shows the interactive drive picker until the user starts a scan
@@ -53,6 +55,8 @@ func runMenu(drives []Drive, plan scanPlan, cached int, header func()) (scanPlan
 			return plan, false
 		case lower == "f":
 			plan.fetch = !plan.fetch
+		case lower == "e" && plan.everything != nil:
+			*plan.everything = !*plan.everything
 		case lower == "q":
 			if cached == 0 {
 				msg = yellow("The cache is empty; run a full scan first.")
@@ -108,6 +112,10 @@ func printMenu(drives []Drive, plan scanPlan, cached int) {
 	fmt.Println("  " + bold("Options"))
 	fmt.Println("   " + check(plan.fetch) + " " + green("F") + "  Fetch from remotes first  " +
 		dim("(exact sync state; slower, needs network)"))
+	if plan.everything != nil {
+		fmt.Println("   " + check(*plan.everything) + " " + green("E") + "  Use Everything index      " +
+			dim("(instant scan; new folders may be missing until Everything indexes them)"))
+	}
 	fmt.Println()
 	fmt.Println("  " + bold("Commands"))
 	if cached > 0 {

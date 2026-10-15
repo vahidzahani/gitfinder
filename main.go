@@ -27,6 +27,7 @@ type options struct {
 	fetch       bool
 	noPrompt    bool
 	noOpen      bool
+	noEverythin bool
 	out         string
 	showVersion bool
 }
@@ -38,6 +39,7 @@ func main() {
 	flag.BoolVar(&o.fetch, "fetch", false, "run git fetch on every repository before checking it")
 	flag.BoolVar(&o.noPrompt, "yes", false, "skip the menu and scan the default drives")
 	flag.BoolVar(&o.noOpen, "no-open", false, "do not open the report in the browser")
+	flag.BoolVar(&o.noEverythin, "no-everything", false, "always walk the disks, even if Everything is running")
 	flag.StringVar(&o.out, "out", "", "report file (default %LOCALAPPDATA%\\GitFinder\\report.html)")
 	flag.BoolVar(&o.showVersion, "version", false, "print version and exit")
 	flag.Parse()
@@ -58,12 +60,20 @@ func main() {
 func run(o options, interactive bool) int {
 	gitVersion, err := checkGit()
 	cache := loadCache()
+	plan := scanPlan{fetch: o.fetch}
+	if !o.noEverythin && everythingReady() {
+		on := true
+		plan.everything = &on
+	}
 	header := func() {
 		printBanner()
 		if err != nil {
 			return
 		}
 		okLine("Git found: " + gitVersion)
+		if plan.everything != nil {
+			okLine("Everything is running: instant scan available")
+		}
 		if n := len(cache.Repos); n > 0 {
 			okLine(fmt.Sprintf("Cache: %d repositories (last scan %s)", n, ago(cache.LastScan)))
 		} else {
@@ -77,7 +87,6 @@ func run(o options, interactive bool) int {
 		return 1
 	}
 
-	plan := scanPlan{fetch: o.fetch}
 	switch {
 	case o.quick:
 		if len(cache.Repos) == 0 {
@@ -125,10 +134,7 @@ func run(o options, interactive bool) int {
 		paths = cache.knownPaths()
 		okLine(fmt.Sprintf("Quick refresh of %s from the cache", bold(fmt.Sprintf("%d repositories", len(paths)))))
 	} else {
-		var st *scanStats
-		paths, st = discover(plan.roots)
-		folders = st.dirs.Load()
-		okLine(fmt.Sprintf("Found %s in %s folders", bold(fmt.Sprintf("%d repositories", len(paths))), thousands(folders)))
+		paths, folders = findRepos(plan, cache)
 	}
 
 	repos := inspectAll(paths, cache.get, plan.fetch)
@@ -239,4 +245,55 @@ func printGitMissing() {
 	fmt.Println("      " + dim("or download it from ") + cyan("https://git-scm.com/download/win"))
 	fmt.Println()
 	fmt.Println("    " + dim("After installing, open a new terminal so PATH is refreshed."))
+}
+
+// findRepos discovers repositories under the plan's roots, through the
+// Everything index when enabled and by walking the disks otherwise.
+func findRepos(plan scanPlan, cache *Cache) ([]string, int64) {
+	walk := plan.roots
+	var paths []string
+	if plan.everything != nil && *plan.everything {
+		walk = nil
+		var indexed []string
+		for _, r := range plan.roots {
+			if everythingIndexed(r) {
+				indexed = append(indexed, r)
+			} else {
+				walk = append(walk, r)
+			}
+		}
+		if len(indexed) > 0 {
+			start := time.Now()
+			found, err := everythingRepos(indexed)
+			if err != nil {
+				warnLine("Everything query failed (" + err.Error() + "), scanning the disks instead")
+				walk = plan.roots
+			} else {
+				// Everything's index can lag behind; keep repos found by
+				// earlier scans that still exist.
+				known := 0
+				for _, p := range cache.knownPaths() {
+					if underAny(repoKey(p), indexed) && !contains(found, p) && !skippedPath(p) {
+						found = append(found, p)
+						known++
+					}
+				}
+				paths = dropNested(found)
+				msg := fmt.Sprintf("Everything index: %s on %s in %s", bold(fmt.Sprintf("%d repositories", len(paths))),
+					strings.Join(indexed, ", "), time.Since(start).Round(time.Millisecond))
+				if known > 0 {
+					msg += dim(fmt.Sprintf(" (+%d from cache)", known))
+				}
+				okLine(msg)
+			}
+		}
+	}
+	var folders int64
+	if len(walk) > 0 {
+		found, st := discover(walk)
+		folders = st.dirs.Load()
+		okLine(fmt.Sprintf("Found %s in %s folders", bold(fmt.Sprintf("%d repositories", len(found))), thousands(folders)))
+		paths = append(paths, found...)
+	}
+	return paths, folders
 }
