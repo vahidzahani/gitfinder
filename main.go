@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -25,6 +26,8 @@ type options struct {
 	quick       bool
 	fetch       bool
 	noPrompt    bool
+	noOpen      bool
+	out         string
 	showVersion bool
 }
 
@@ -34,6 +37,8 @@ func main() {
 	flag.BoolVar(&o.quick, "quick", false, "re-check cached repositories only, without scanning disks")
 	flag.BoolVar(&o.fetch, "fetch", false, "run git fetch on every repository before checking it")
 	flag.BoolVar(&o.noPrompt, "yes", false, "skip the menu and scan the default drives")
+	flag.BoolVar(&o.noOpen, "no-open", false, "do not open the report in the browser")
+	flag.StringVar(&o.out, "out", "", "report file (default %LOCALAPPDATA%\\GitFinder\\report.html)")
 	flag.BoolVar(&o.showVersion, "version", false, "print version and exit")
 	flag.Parse()
 	if o.showVersion {
@@ -115,23 +120,50 @@ func run(o options, interactive bool) int {
 
 	start := time.Now()
 	var paths []string
+	var folders int64
 	if plan.mode == modeQuick {
 		paths = cache.knownPaths()
 		okLine(fmt.Sprintf("Quick refresh of %s from the cache", bold(fmt.Sprintf("%d repositories", len(paths)))))
 	} else {
 		var st *scanStats
 		paths, st = discover(plan.roots)
-		okLine(fmt.Sprintf("Found %s in %s folders", bold(fmt.Sprintf("%d repositories", len(paths))),
-			thousands(st.dirs.Load())))
+		folders = st.dirs.Load()
+		okLine(fmt.Sprintf("Found %s in %s folders", bold(fmt.Sprintf("%d repositories", len(paths))), thousands(folders)))
 	}
 
 	repos := inspectAll(paths, cache.get, plan.fetch)
 	sort.Slice(repos, func(i, j int) bool { return strings.ToLower(repos[i].Name) < strings.ToLower(repos[j].Name) })
+	markDuplicates(repos)
 	cache.update(plan.roots, repos, plan.mode != modeQuick)
 	if err := cache.save(); err != nil {
 		warnLine("Could not save the cache: " + err.Error())
 	}
-	printSummary(repos, time.Since(start))
+	took := time.Since(start)
+	printSummary(repos, took)
+
+	out := o.out
+	if out == "" {
+		out = filepath.Join(appDataDir(), "report.html")
+	}
+	out, _ = filepath.Abs(out)
+	err = writeReport(out, reportData{
+		Mode:    [...]string{"drives", "path", "quick"}[plan.mode],
+		Roots:   plan.roots,
+		Fetched: plan.fetch,
+		Seconds: took.Seconds(),
+		Folders: folders,
+		Repos:   repos,
+	})
+	if err != nil {
+		errLine("Could not write the report: " + err.Error())
+		return 1
+	}
+	okLine("Report: " + green(out))
+	if !o.noOpen {
+		if err := openInBrowser(out); err != nil {
+			warnLine("Could not open the browser: " + err.Error())
+		}
+	}
 	return 0
 }
 

@@ -18,7 +18,7 @@ var skipAnywhere = map[string]bool{
 	"site-packages": true, ".venv": true, ".tox": true, ".vs": true,
 	".npm": true, ".nuget": true, ".gradle": true, ".m2": true,
 	".cargo": true, ".rustup": true, ".pnpm-store": true,
-	"appdata": true, "windowsapps": true,
+	"appdata": true, "windowsapps": true, "vendor": true,
 	"$recycle.bin": true, "system volume information": true,
 }
 

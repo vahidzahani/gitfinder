@@ -1,0 +1,582 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GitFinder Report</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='6' fill='%23166534'/%3E%3Cg fill='none' stroke='white' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='8' cy='6' r='2'/%3E%3Ccircle cx='8' cy='18' r='2'/%3E%3Ccircle cx='16' cy='9' r='2'/%3E%3Cpath d='M8 8v8M16 11c0 3-4 3-7 5'/%3E%3C/g%3E%3C/svg%3E">
+<style>
+:root {
+  --g950: #052e16; --g900: #0f3d24; --g800: #166534; --g700: #15803d; --g600: #16a34a;
+  --g500: #22c55e; --g200: #bbf7d0; --g100: #dcfce7; --g50: #f0fdf4;
+  --bg: #f5faf6; --card: #ffffff; --line: #dbeae0; --line2: #eaf3ed;
+  --ink: #102a1c; --ink2: #3c5a49; --mute: #6b8577;
+  --red: #b42318; --red-bg: #fef3f2; --red-line: #fecdca;
+  --amber: #b54708; --amber-bg: #fffaeb; --amber-line: #fedf89;
+  --blue: #175cd3; --blue-bg: #eff8ff; --blue-line: #b2ddff;
+  --radius: 14px;
+  --shadow: 0 1px 2px rgba(16, 42, 28, .06), 0 1px 3px rgba(16, 42, 28, .08);
+  --mono: ui-monospace, "Cascadia Code", "Cascadia Mono", Consolas, monospace;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font: 14px/1.5 "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+a { color: var(--g700); text-decoration: none; }
+a:hover { text-decoration: underline; }
+button { font: inherit; color: inherit; }
+.wrap { max-width: 1320px; margin: 0 auto; padding: 0 20px; }
+
+/* Header */
+.top {
+  background: linear-gradient(135deg, var(--g950), var(--g800) 60%, var(--g700));
+  color: #fff; padding: 26px 0 70px;
+}
+.top .wrap { display: flex; align-items: center; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
+.brand { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.logo {
+  width: 48px; height: 48px; border-radius: 14px; flex: none;
+  background: rgba(255,255,255,.12); display: grid; place-items: center;
+  border: 1px solid rgba(255,255,255,.18);
+}
+.brand h1 { margin: 0; font-size: 24px; line-height: 1.2; letter-spacing: -.01em; }
+.brand h1 span { font-weight: 400; opacity: .7; font-size: 15px; margin-left: 6px; }
+.meta { margin: 4px 0 0; font-size: 13px; color: rgba(255,255,255,.78); }
+.meta b { color: #fff; font-weight: 600; }
+
+/* Summary cards */
+.cards {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(128px, 1fr)); gap: 12px;
+  margin-top: -46px;
+}
+.card {
+  background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 14px 16px; box-shadow: var(--shadow); text-align: left; cursor: pointer;
+  display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-start;
+  transition: border-color .15s, transform .15s;
+}
+.card:hover { border-color: var(--g500); transform: translateY(-1px); }
+.card.on { border-color: var(--g600); box-shadow: 0 0 0 3px var(--g100), var(--shadow); }
+.card .num { font-size: 30px; font-weight: 700; line-height: 1.1; color: var(--g700); font-variant-numeric: tabular-nums; }
+.card .lbl { font-weight: 600; margin-top: 4px; }
+.card .hint { font-size: 12px; color: var(--mute); }
+.card.warn .num { color: var(--amber); }
+.card.danger .num { color: var(--red); }
+.card.zero .num { color: #a7bdb0; }
+
+/* Panels */
+.panel {
+  background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+  box-shadow: var(--shadow); margin-top: 18px;
+}
+.risk { padding: 16px 18px; border-left: 5px solid var(--red); }
+.risk.ok { border-left-color: var(--g600); }
+.risk h2 { margin: 0; font-size: 16px; display: flex; align-items: center; gap: 8px; }
+.risk p { margin: 2px 0 10px; color: var(--ink2); font-size: 13px; }
+.risk.ok p { margin-bottom: 0; }
+.risk ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.risk li {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 8px 10px; border-radius: 10px; background: var(--red-bg); border: 1px solid var(--red-line);
+}
+.risk li .n { font-weight: 600; }
+.risk li .p { font-family: var(--mono); font-size: 12px; color: var(--mute); flex: 1; min-width: 200px; overflow-wrap: anywhere; }
+.risk .more { margin-top: 8px; }
+
+/* Toolbar */
+.toolbar {
+  display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+  padding: 14px 16px; border-bottom: 1px solid var(--line);
+}
+.search { position: relative; flex: 1 1 260px; }
+.search input {
+  width: 100%; padding: 9px 12px 9px 34px; border-radius: 10px; border: 1px solid var(--line);
+  font: inherit; background: var(--g50); outline: none;
+}
+.search input:focus { border-color: var(--g600); background: #fff; box-shadow: 0 0 0 3px var(--g100); }
+.search svg { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--mute); }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.chip {
+  border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 5px 11px;
+  cursor: pointer; font-size: 13px; white-space: nowrap;
+}
+.chip:hover { border-color: var(--g500); }
+.chip.on { background: var(--g700); border-color: var(--g700); color: #fff; }
+.chip i { font-style: normal; opacity: .65; margin-left: 4px; }
+select {
+  font: inherit; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); background: #fff; color: var(--ink);
+}
+.count { font-size: 13px; color: var(--mute); padding: 10px 16px 0; }
+
+/* Table */
+.tablewrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; }
+th {
+  text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: .04em;
+  color: var(--mute); font-weight: 600; padding: 10px 12px; border-bottom: 1px solid var(--line);
+  white-space: nowrap; background: #fbfdfb;
+}
+td { padding: 12px; border-bottom: 1px solid var(--line2); vertical-align: top; }
+td.c-repo { min-width: 240px; width: 30%; }
+tr.row:hover > td { background: #f7fcf8; }
+tr.row.open > td { background: var(--g50); border-bottom-color: transparent; }
+.num-col { text-align: right; font-variant-numeric: tabular-nums; }
+.rname { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.rname .link { background: none; border: 0; padding: 0; font-weight: 600; font-size: 15px; cursor: pointer; color: var(--ink); }
+.rname .link:hover { color: var(--g700); }
+.rpath {
+  font-family: var(--mono); font-size: 12px; color: var(--mute); cursor: copy; margin-top: 2px;
+  overflow-wrap: anywhere; unicode-bidi: plaintext;
+}
+.rpath:hover { color: var(--g700); }
+.rremote { font-size: 12px; margin-top: 2px; overflow-wrap: anywhere; }
+.sub { font-size: 12px; color: var(--mute); margin-top: 3px; }
+.subject { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.pill {
+  display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px;
+  font-size: 12px; font-weight: 600; border: 1px solid transparent; white-space: nowrap; line-height: 1.6;
+}
+.pill.ok { background: var(--g100); color: var(--g800); border-color: var(--g200); }
+.pill.warn { background: var(--amber-bg); color: var(--amber); border-color: var(--amber-line); }
+.pill.bad { background: var(--red-bg); color: var(--red); border-color: var(--red-line); }
+.pill.info { background: var(--blue-bg); color: var(--blue); border-color: var(--blue-line); }
+.pill.mute { background: #f2f5f3; color: var(--mute); border-color: #e3ebe6; }
+.pills { display: flex; gap: 4px; flex-wrap: wrap; }
+.tag { font-size: 11px; padding: 1px 7px; }
+.branch {
+  display: inline-flex; align-items: center; gap: 5px; font-family: var(--mono); font-size: 12.5px;
+  background: var(--g50); border: 1px solid var(--line); border-radius: 8px; padding: 2px 8px; max-width: 220px;
+}
+.branch span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.iconbtn {
+  border: 1px solid var(--line); background: #fff; border-radius: 9px; padding: 6px 8px; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+}
+.iconbtn:hover { border-color: var(--g600); color: var(--g700); }
+.chev { transition: transform .15s; }
+tr.open .chev { transform: rotate(180deg); }
+.empty { text-align: center; color: var(--mute); padding: 40px 16px; }
+
+/* Details row */
+tr.details > td { background: var(--g50); padding: 4px 16px 18px; border-bottom: 1px solid var(--line); }
+.dgrid { display: grid; grid-template-columns: 2fr 1fr; gap: 14px; }
+.dbox { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; min-width: 0; }
+.dbox h3 { margin: 0 0 8px; font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--mute); }
+.dbox table td, .dbox table th { padding: 6px 8px; font-size: 13px; background: none; }
+.dbox dl { margin: 0; display: grid; grid-template-columns: max-content 1fr; gap: 4px 12px; font-size: 13px; }
+.dbox dt { color: var(--mute); }
+.dbox dd { margin: 0; overflow-wrap: anywhere; }
+.mono { font-family: var(--mono); font-size: 12.5px; }
+.errtext { color: var(--red); }
+
+/* Footer */
+footer { text-align: center; color: var(--mute); font-size: 13px; padding: 34px 16px 40px; }
+footer .who { color: var(--ink); font-weight: 600; }
+footer .links { display: inline-flex; gap: 14px; flex-wrap: wrap; justify-content: center; margin-top: 6px; }
+footer .links a { display: inline-flex; align-items: center; gap: 5px; }
+
+/* Toast */
+#toast {
+  position: fixed; left: 50%; bottom: 26px; transform: translate(-50%, 20px); opacity: 0; pointer-events: none;
+  background: var(--g900); color: #fff; padding: 10px 16px; border-radius: 10px; font-size: 13px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.18); transition: opacity .2s, transform .2s; z-index: 50; max-width: calc(100% - 32px);
+}
+#toast.show { opacity: 1; transform: translate(-50%, 0); }
+#toast.bad { background: var(--red); }
+
+@media (max-width: 860px) {
+  .dgrid { grid-template-columns: 1fr; }
+  .hide-sm { display: none; }
+  .wrap { padding: 0 16px; }
+}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <div class="brand">
+      <div class="logo" aria-hidden="true">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><circle cx="7" cy="5" r="2"/><circle cx="7" cy="19" r="2"/><circle cx="17" cy="8" r="2"/><path d="M7 7v10M17 10c0 4-5 4-9 7"/></svg>
+      </div>
+      <div>
+        <h1>GitFinder<span>Local repository report</span></h1>
+        <p class="meta" id="meta"></p>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="cards" id="cards"></section>
+  <section class="panel risk" id="risk"></section>
+  <section class="panel">
+    <div class="toolbar">
+      <label class="search">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input id="q" type="search" placeholder="Search name, path, branch or remote…  ( / )" autocomplete="off">
+      </label>
+      <select id="sort" aria-label="Sort">
+        <option value="name">Sort: Name</option>
+        <option value="recent">Sort: Last commit (newest)</option>
+        <option value="oldest">Sort: Last commit (oldest)</option>
+        <option value="changes">Sort: Uncommitted changes</option>
+        <option value="unpushed">Sort: Unpushed commits</option>
+        <option value="commits">Sort: Commit count</option>
+        <option value="path">Sort: Path</option>
+      </select>
+    </div>
+    <div class="toolbar" style="padding-top:10px;padding-bottom:10px"><div class="chips" id="filters"></div></div>
+    <div class="count" id="count"></div>
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Repository</th>
+            <th>Branch</th>
+            <th>Sync</th>
+            <th>Working tree</th>
+            <th class="num-col hide-sm">Commits</th>
+            <th class="hide-sm">Last commit</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="list"></tbody>
+      </table>
+    </div>
+    <div class="empty" id="empty" hidden>No repositories match this filter.</div>
+  </section>
+</main>
+
+<footer>
+  <div>Generated by <b>GitFinder</b> <span id="ver"></span> · made by <span class="who">vahidzahani</span></div>
+  <div class="links">
+    <a href="https://vahidzahani.ir" target="_blank" rel="noopener">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg>vahidzahani.ir</a>
+    <a href="https://github.com/vahidzahani" target="_blank" rel="noopener">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.68 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.83 1.19 3.09 0 4.41-2.69 5.39-5.25 5.67.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5z"/></svg>github.com/vahidzahani</a>
+  </div>
+</footer>
+
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+const DATA = /*__GITFINDER_DATA__*/null;
+(function () {
+  "use strict";
+  const D = DATA || { repos: [], generated: Date.now() / 1000, staleDays: 180, roots: [] };
+  const repos = D.repos || [];
+  const $ = (s, el) => (el || document).querySelector(s);
+  const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const store = {
+    get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+    set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} },
+  };
+
+  // ---------- derived state ----------
+  const STALE = (D.staleDays || 180) * 86400;
+  repos.forEach((r, i) => {
+    r.id = i;
+    r.branches = r.branches || [];
+    r.remotes = r.remotes || [];
+    r.duplicates = r.duplicates || [];
+    r.changes = r.staged + r.modified + r.untracked + r.conflicts;
+    r.dirty = r.changes > 0;
+    r.noRemote = !r.error && r.remotes.length === 0;
+    r.hasUnpushed = !r.noRemote && r.unpushed > 0;
+    r.behindAny = r.behind > 0 || r.branches.some(b => b.behind > 0);
+    r.stale = r.lastCommit > 0 && D.generated - r.lastCommit > STALE;
+    r.dup = r.duplicates.length > 0;
+    r.atRisk = !r.error && ((r.noRemote && (r.commits > 0 || r.dirty)) || r.hasUnpushed);
+    r.text = [r.name, r.path, r.branch, r.lastSubject]
+      .concat(r.branches.map(b => b.name), r.remotes.map(x => x.url)).join("\n").toLowerCase();
+  });
+
+  const FILTERS = [
+    ["all", "All", () => true],
+    ["risk", "At risk", r => r.atRisk],
+    ["dirty", "Dirty", r => r.dirty],
+    ["unpushed", "Unpushed", r => r.hasUnpushed],
+    ["noremote", "No remote", r => r.noRemote],
+    ["behind", "Behind", r => r.behindAny],
+    ["stale", "Stale", r => r.stale],
+    ["dup", "Duplicates", r => r.dup],
+    ["clean", "Clean & synced", r => !r.error && !r.dirty && !r.atRisk && !r.behindAny && !r.noRemote],
+    ["error", "Errors", r => !!r.error],
+  ];
+  const SORTS = {
+    name: (a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }),
+    path: (a, b) => a.path.localeCompare(b.path, undefined, { sensitivity: "base" }),
+    recent: (a, b) => b.lastCommit - a.lastCommit,
+    oldest: (a, b) => (a.lastCommit || Infinity) - (b.lastCommit || Infinity),
+    changes: (a, b) => b.changes - a.changes,
+    unpushed: (a, b) => b.unpushed - a.unpushed,
+    commits: (a, b) => b.commits - a.commits,
+  };
+  const count = key => repos.filter(FILTERS.find(f => f[0] === key)[2]).length;
+
+  let filter = "all", query = "", sortBy = store.get("gf-sort") || "name";
+  const open = new Set();
+
+  // ---------- formatting ----------
+  const fmtNum = n => Number(n || 0).toLocaleString("en-US");
+  const fmtDate = ts => ts ? new Date(ts * 1000).toLocaleString("en-US", { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false }) : "—";
+  function ago(ts) {
+    if (!ts) return "—";
+    const s = Math.max(0, D.generated - ts), m = s / 60, h = m / 60, d = h / 24;
+    if (m < 1) return "just now";
+    if (h < 1) return Math.floor(m) + " min ago";
+    if (d < 1) return Math.floor(h) + " h ago";
+    if (d < 2) return "yesterday";
+    if (d < 45) return Math.floor(d) + " days ago";
+    if (d < 365) return Math.floor(d / 30.4) + " months ago";
+    const y = Math.floor(d / 365);
+    return y + (y === 1 ? " year ago" : " years ago");
+  }
+  const plural = (n, w, many) => fmtNum(n) + " " + (n === 1 ? w : many || w + "s");
+  const BRANCH_ICON = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" style="flex:none"><circle cx="6" cy="5" r="2"/><circle cx="6" cy="19" r="2"/><circle cx="18" cy="8" r="2"/><path d="M6 7v10M18 10c0 4-5 4-10 7"/></svg>`;
+  const pill = (cls, text, title) => `<span class="pill ${cls}"${title ? ` title="${esc(title)}"` : ""}>${text}</span>`;
+
+  // ---------- header + cards ----------
+  function renderMeta() {
+    const where = D.mode === "quick" ? "Quick refresh of cached repositories"
+      : "Scanned <b>" + esc((D.roots || []).join(", ")) + "</b>";
+    const parts = [
+      "Generated <b>" + esc(fmtDate(D.generated)) + "</b>" + (D.host ? " on " + esc(D.host) : ""),
+      where,
+      D.folders ? fmtNum(D.folders) + " folders" : "",
+      D.seconds ? D.seconds.toFixed(1) + "s" : "",
+      D.fetched ? "Fetched from remotes" : "Sync state as of each repo's last fetch",
+    ].filter(Boolean);
+    $("#meta").innerHTML = parts.join(" · ");
+    $("#ver").textContent = "v" + (D.version || "");
+  }
+
+  const CARDS = [
+    ["all", "Repositories", "found on this computer", ""],
+    ["dirty", "Dirty", "uncommitted changes", "warn"],
+    ["unpushed", "Unpushed", "commits not on any remote", "warn"],
+    ["noremote", "No remote", "never pushed anywhere", "danger"],
+    ["behind", "Behind", "remote has new commits", "warn"],
+    ["stale", "Stale", "no commit in " + Math.round((D.staleDays || 180) / 30) + "+ months", "warn"],
+    ["dup", "Duplicates", "same remote cloned twice", "warn"],
+  ];
+  function renderCards() {
+    $("#cards").innerHTML = CARDS.map(([key, label, hint, tone]) => {
+      const n = count(key);
+      const cls = ["card", n === 0 && key !== "all" ? "zero" : tone, filter === key ? "on" : ""].join(" ");
+      return `<button class="${cls}" data-filter="${key}"><div class="num">${fmtNum(n)}</div><div class="lbl">${label}</div><div class="hint">${hint}</div></button>`;
+    }).join("");
+  }
+
+  function riskReasons(r) {
+    const out = [];
+    if (r.noRemote) out.push(pill("bad", "No remote"));
+    else if (r.unpushed > 0) out.push(pill("bad", plural(r.unpushed, "unpushed commit")));
+    if (r.dirty) out.push(pill("warn", plural(r.changes, "uncommitted change")));
+    if (r.stashes > 0) out.push(pill("warn", plural(r.stashes, "stash", "stashes") + " (local only)"));
+    return out.join(" ");
+  }
+  function renderRisk() {
+    const list = repos.filter(r => r.atRisk).sort((a, b) => (b.noRemote - a.noRemote) || b.unpushed - a.unpushed);
+    const el = $("#risk");
+    if (!list.length) {
+      el.className = "panel risk ok";
+      el.innerHTML = `<h2><span style="color:var(--g600)">✔</span> Nothing at risk</h2><p>Every repository with commits has a remote and all local commits are pushed.</p>`;
+      return;
+    }
+    el.className = "panel risk";
+    const max = 8;
+    el.innerHTML = `<h2><span style="color:var(--red)">⚠</span> At risk: ${plural(list.length, "repository", "repositories")}</h2>
+      <p>This work exists only on this computer. If the disk fails it is gone, so push it to a remote.</p>
+      <ul>${list.slice(0, max).map(r => `<li><span class="n">${esc(r.name)}</span>${riskReasons(r)}<span class="p">${esc(r.path)}</span>
+        <button class="iconbtn" data-goto="${r.id}">Show</button></li>`).join("")}</ul>
+      ${list.length > max ? `<div class="more"><button class="iconbtn" data-filter="risk">Show all ${list.length} at-risk repositories</button></div>` : ""}`;
+  }
+
+  function renderFilters() {
+    $("#filters").innerHTML = FILTERS.filter(([k]) => k !== "error" || count("error") > 0).map(([k, label]) =>
+      `<button class="chip${filter === k ? " on" : ""}" data-filter="${k}">${label}<i>${count(k)}</i></button>`).join("");
+  }
+
+  // ---------- table ----------
+  function branchCell(r) {
+    if (r.error) return "—";
+    const name = r.detached ? "detached @" + (r.head || "").slice(0, 7) : (r.branch || "—");
+    return `<span class="branch" title="${esc(name)}">${BRANCH_ICON}<span>${esc(name)}</span></span>` +
+      (r.branches.length ? `<div class="sub">${plural(r.branches.length, "branch", "branches")}</div>` : "");
+  }
+
+  function syncCell(r) {
+    if (r.error) return pill("bad", "Error", r.error);
+    let main;
+    if (r.noRemote) main = pill("bad", "No remote");
+    else if (r.detached) main = pill("mute", "Detached HEAD");
+    else if (!r.head) main = pill("mute", "No commits");
+    else if (!r.upstream) main = pill("warn", "No upstream", "The current branch does not track a remote branch");
+    else if (r.ahead && r.behind) main = pill("warn", `↑${r.ahead} ↓${r.behind}`, "Diverged from " + r.upstream);
+    else if (r.ahead) main = pill("warn", `↑${r.ahead} to push`, "Ahead of " + r.upstream);
+    else if (r.behind) main = pill("info", `↓${r.behind} to pull`, "Behind " + r.upstream);
+    else main = pill("ok", "✓ In sync", "Up to date with " + r.upstream);
+    const notes = [];
+    const off = r.branches.filter(b => !b.current && (b.ahead || b.behind || b.gone)).length;
+    if (off) notes.push(plural(off, "other branch", "other branches") + " out of sync");
+    if (r.hasUnpushed && !(r.ahead && r.ahead === r.unpushed)) notes.push(plural(r.unpushed, "unpushed commit"));
+    if (r.fetchError) notes.push(`<span class="errtext" title="${esc(r.fetchError)}">fetch failed</span>`);
+    return main + (notes.length ? `<div class="sub">${notes.join(" · ")}</div>` : "");
+  }
+
+  function treeCell(r) {
+    if (r.error) return "—";
+    const p = [];
+    if (r.conflicts) p.push(pill("bad", plural(r.conflicts, "conflict")));
+    if (r.staged) p.push(pill("ok", r.staged + " staged"));
+    if (r.modified) p.push(pill("warn", r.modified + " modified"));
+    if (r.untracked) p.push(pill("mute", r.untracked + " untracked"));
+    const out = p.length ? `<div class="pills">${p.join("")}</div>` : pill("ok", "✓ Clean");
+    return out + (r.stashes ? `<div class="sub">${plural(r.stashes, "stash", "stashes")}</div>` : "");
+  }
+
+  function tags(r) {
+    const t = [];
+    if (r.atRisk) t.push(pill("bad tag", "at risk"));
+    if (r.stale) t.push(pill("mute tag", "stale"));
+    if (r.dup) t.push(pill("info tag", "duplicate", "Same remote also cloned at:\n" + r.duplicates.join("\n")));
+    if (r.worktree) t.push(pill("mute tag", "worktree"));
+    return t.join("");
+  }
+
+  function remoteLink(r) {
+    const rem = r.remotes[0];
+    if (!rem) return "";
+    const label = esc(rem.web ? rem.web.replace(/^https:\/\//, "") : rem.url);
+    return `<div class="rremote">${rem.web ? `<a href="${esc(rem.web)}" target="_blank" rel="noopener">${label}</a>` : `<span class="mono">${label}</span>`}${r.remotes.length > 1 ? ` <span class="sub">+${r.remotes.length - 1}</span>` : ""}</div>`;
+  }
+
+  function rowHTML(r) {
+    const isOpen = open.has(r.id);
+    return `<tr class="row${isOpen ? " open" : ""}" id="repo-${r.id}">
+      <td class="c-repo"><div class="rname"><button class="link" data-toggle="${r.id}">${esc(r.name)}</button>${tags(r)}</div>
+        <div class="rpath" data-copy-path="${r.id}" title="Click to copy the path">${esc(r.path)}</div>${remoteLink(r)}</td>
+      <td>${branchCell(r)}</td>
+      <td>${syncCell(r)}</td>
+      <td>${treeCell(r)}</td>
+      <td class="num-col hide-sm">${r.error ? "—" : fmtNum(r.commits)}</td>
+      <td class="hide-sm"><span title="${esc(fmtDate(r.lastCommit))}">${ago(r.lastCommit)}</span>
+        ${r.lastSubject ? `<div class="sub subject" title="${esc(r.lastSubject)}">${esc(r.lastSubject)}</div>` : ""}</td>
+      <td style="white-space:nowrap;text-align:right">
+        <button class="iconbtn" data-toggle="${r.id}" title="Details" aria-label="Details"><svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="m6 9 6 6 6-6"/></svg></button>
+      </td>
+    </tr>${isOpen ? detailsHTML(r) : ""}`;
+  }
+
+  function branchStatus(b) {
+    if (b.gone) return pill("bad", "upstream gone");
+    if (!b.upstream) return pill("warn", "local only");
+    if (b.ahead && b.behind) return pill("warn", `↑${b.ahead} ↓${b.behind}`);
+    if (b.ahead) return pill("warn", `↑${b.ahead} to push`);
+    if (b.behind) return pill("info", `↓${b.behind} to pull`);
+    return pill("ok", "✓ in sync");
+  }
+
+  function detailsHTML(r) {
+    const branches = r.branches.length ? `<table><thead><tr><th>Branch</th><th>Upstream</th><th>Status</th><th>Last commit</th></tr></thead><tbody>
+      ${r.branches.map(b => `<tr><td class="mono">${b.current ? "<b>● " : ""}${esc(b.name)}${b.current ? "</b>" : ""}</td>
+        <td class="mono">${esc(b.upstream || "—")}</td><td>${branchStatus(b)}</td><td title="${esc(fmtDate(b.date))}">${ago(b.date)}</td></tr>`).join("")}
+      </tbody></table>` : `<p class="sub">No branches yet (no commits).</p>`;
+    const remotes = r.remotes.length ? r.remotes.map(x => `<dt>${esc(x.name)}</dt><dd class="mono">${x.web ? `<a href="${esc(x.web)}" target="_blank" rel="noopener">${esc(x.url)}</a>` : esc(x.url)}</dd>`).join("")
+      : `<dt>Remote</dt><dd><span class="errtext">none</span>. Commits exist only here.</dd>`;
+    const info = [
+      ["Path", `<span class="mono">${esc(r.path)}</span>`],
+      ["Last commit", r.lastCommit ? `${esc(fmtDate(r.lastCommit))} by ${esc(r.lastAuthor)}<br>${esc(r.lastSubject)}` : "—"],
+      ["HEAD", r.head ? `<span class="mono">${esc(r.head.slice(0, 12))}</span>` : "—"],
+      ["Unpushed", r.noRemote ? "all commits (no remote)" : plural(r.unpushed, "commit")],
+      ["Stashes", fmtNum(r.stashes)],
+    ];
+    if (r.dup) info.push(["Also cloned at", r.duplicates.map(p => `<div class="mono">${esc(p)}</div>`).join("")]);
+    if (r.fetchError) info.push(["Fetch", `<span class="errtext">${esc(r.fetchError)}</span>`]);
+    if (r.error) info.push(["Error", `<span class="errtext">${esc(r.error)}</span>`]);
+    return `<tr class="details"><td colspan="7"><div class="dgrid">
+      <div class="dbox"><h3>Branches</h3><div class="tablewrap">${branches}</div></div>
+      <div class="dbox"><h3>Remotes</h3><dl>${remotes}</dl><h3 style="margin-top:14px">Info</h3>
+        <dl>${info.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("")}</dl></div>
+    </div></td></tr>`;
+  }
+
+  function render() {
+    const fn = FILTERS.find(f => f[0] === filter)[2];
+    const rows = repos.filter(r => fn(r) && (!query || r.text.includes(query))).sort(SORTS[sortBy] || SORTS.name);
+    $("#list").innerHTML = rows.map(rowHTML).join("");
+    $("#empty").hidden = rows.length > 0;
+    $("#count").textContent = `Showing ${fmtNum(rows.length)} of ${plural(repos.length, "repository", "repositories")}`;
+    renderCards();
+    renderFilters();
+  }
+
+  // ---------- clipboard + toast ----------
+  let toastTimer;
+  function toast(msg, bad) {
+    const t = $("#toast");
+    t.textContent = msg;
+    t.className = "show" + (bad ? " bad" : "");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => (t.className = ""), 2200);
+  }
+  function copy(text, label) {
+    const done = () => toast("Copied: " + (label || text));
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text).then(done, () => fallbackCopy(text) && done());
+    } else if (fallbackCopy(text)) done();
+    else toast("Copy failed. Select the text and press Ctrl+C", true);
+  }
+  function fallbackCopy(text) {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.cssText = "position:fixed;top:-1000px;opacity:0";
+    document.body.appendChild(ta);
+    ta.select();
+    let ok = false;
+    try { ok = document.execCommand("copy"); } catch (e) {}
+    ta.remove();
+    return ok;
+  }
+
+  // ---------- events ----------
+  document.addEventListener("click", e => {
+    const t = e.target.closest("[data-filter],[data-toggle],[data-copy-path],[data-goto]");
+    if (!t) return;
+    if (t.dataset.filter) {
+      filter = filter === t.dataset.filter && t.dataset.filter !== "all" ? "all" : t.dataset.filter;
+      render();
+      if (t.closest("#risk")) $("#q").scrollIntoView({ behavior: "smooth", block: "center" });
+    } else if (t.dataset.toggle) {
+      const id = +t.dataset.toggle;
+      open.has(id) ? open.delete(id) : open.add(id);
+      render();
+    } else if (t.dataset.copyPath) {
+      copy(repos[+t.dataset.copyPath].path);
+    } else if (t.dataset.goto) {
+      const id = +t.dataset.goto;
+      filter = "all"; query = ""; $("#q").value = "";
+      open.add(id);
+      render();
+      const row = document.getElementById("repo-" + id);
+      if (row) row.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  });
+  $("#q").addEventListener("input", e => { query = e.target.value.trim().toLowerCase(); render(); });
+  $("#sort").value = sortBy;
+  $("#sort").addEventListener("change", e => { sortBy = e.target.value; store.set("gf-sort", sortBy); render(); });
+  document.addEventListener("keydown", e => {
+    if (e.key === "/" && document.activeElement.tagName !== "INPUT") { e.preventDefault(); $("#q").focus(); }
+  });
+
+  renderMeta();
+  renderRisk();
+  render();
+})();
+</script>
+</body>
+</html>
